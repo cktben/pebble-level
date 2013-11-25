@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+
+import math
+
+f = file('acos_table.c', 'w')
+
+print >> f, '// Automatically generated - DO NOT EDIT'
+print >> f, '#include <stdint.h>'
+print >> f, ''
+print >> f, 'const int16_t acos_table[1024] = {'
+
+line = ''
+for angle in range(1024):
+    if (angle & 15) == 0:
+        line = '    '
+    line += '%3d' % int(round(math.acos(angle / 1024.0) * 1800 / math.pi))
+
+    if angle < 1023:
+        line += ','
+        if (angle & 15) < 15:
+            line += ' '
+
+    if (angle & 15) == 15:
+        print >> f, line
+
+print >> f, '};'
+
+f.close()

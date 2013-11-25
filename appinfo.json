@@ -1,0 +1,16 @@
+{
+  "uuid": "92b0f704-8879-4fe2-8b4c-e49c30c45e35",
+  "shortName": "Level",
+  "longName": "Bubble Level",
+  "companyName": "circuitben.net",
+  "versionCode": 1,
+  "versionLabel": "1.0.0",
+  "watchapp": {
+    "watchface": false
+  },
+  "appKeys": {
+  },
+  "resources": {
+    "media": []
+  }
+}

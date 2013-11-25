@@ -1,0 +1,6 @@
+
+# Ignore build generated files
+build
+
+.lock*
+src/acos_table.c
