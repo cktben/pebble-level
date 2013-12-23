@@ -1,6 +1,6 @@
 {
   "uuid": "92b0f704-8879-4fe2-8b4c-e49c30c45e35",
-  "shortName": "Level",
+  "shortName": "Bubble Level",
   "longName": "Bubble Level",
   "companyName": "circuitben.net",
   "versionCode": 1,
@@ -11,6 +11,13 @@
   "appKeys": {
   },
   "resources": {
-    "media": []
+    "media": [
+      {
+        "menuIcon": true,
+        "type": "png",
+        "name": "MENU_ICON",
+        "file": "images/menu_icon.png"
+      }
+    ]
   }
 }
