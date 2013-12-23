@@ -100,54 +100,52 @@ void update_accel(void *param)
     // I don't see a good solution to that.  Filtering isn't really the right solution
     // because the accelerometer may be rotating (not in an inertial frame).
     // In practice this is unlikely to be a serious problem.
-    if (abs(data.x) > 1200 || abs(data.y) > 1200 || abs(data.z) > 1200)
+    if (abs(data.x) < 1200 && abs(data.y) < 1200 && abs(data.z) < 1200)
     {
-        return;
+        // Convert and normalize the acceleration vector.
+        int32_t accel_raw[3] =
+        {
+            data.x << 4,
+            data.y << 4,
+            data.z << 4
+        };
+
+        fix16_t magsq = 0;
+        for (int i = 0; i < 3; i++)
+        {
+            accel_raw[i] = filter(&filter_state[i], accel_raw[i]);
+
+            // Find the magnitude-squared of the acceleration vector.
+            //
+            // This is not fix16_t because it will be too large.
+            // This will not overflow because the maximum acceleration is limited above.
+            magsq += accel_raw[i] * accel_raw[i];
+        }
+
+        // Normalize the acceleration vector.
+        fix16_t mag = fix16_sqrt(magsq) << 8;
+        for (int i = 0; i < 3; i++)
+        {
+            accel_normalized[i] = fix16_div(fix16_from_int(accel_raw[i]), mag);
+        }
+
+        // Get the angle from vertical in integer decidegrees.
+        int a = fix16_acos(fix16_abs(accel_normalized[2])) * 1800 / fix16_pi;
+
+        // Get decimal integer and fractional parts.
+        int i = a / 10;
+        int f = a % 10;
+
+        // Update the angle text.
+        snprintf(angle_text, sizeof(angle_text), "%d.%d\u00B0", i, f);
+        text_layer_set_text(angle_layer, angle_text);
+
+        // Redraw the display layer.
+        layer_mark_dirty(bubble_layer);
     }
-
-    // Convert and normalize the acceleration vector.
-    int32_t accel_raw[3] =
-    {
-        data.x << 4,
-        data.y << 4,
-        data.z << 4
-    };
-
-    fix16_t magsq = 0;
-    for (int i = 0; i < 3; i++)
-    {
-        accel_raw[i] = filter(&filter_state[i], accel_raw[i]);
-
-        // Find the magnitude-squared of the acceleration vector.
-        //
-        // This is not fix16_t because it will be too large.
-        // This will not overflow because the maximum acceleration is limited above.
-        magsq += accel_raw[i] * accel_raw[i];
-    }
-
-    // Normalize the acceleration vector.
-    fix16_t mag = fix16_sqrt(magsq) << 8;
-    for (int i = 0; i < 3; i++)
-    {
-        accel_normalized[i] = fix16_div(fix16_from_int(accel_raw[i]), mag);
-    }
-
-    // Get the angle from vertical in integer decidegrees.
-    int a = fix16_acos(fix16_abs(accel_normalized[2])) * 1800 / fix16_pi;
-
-    // Get decimal integer and fractional parts.
-    int i = a / 10;
-    int f = a % 10;
-
-    // Update the angle text.
-    snprintf(angle_text, sizeof(angle_text), "%d.%d\u00B0", i, f);
-    text_layer_set_text(angle_layer, angle_text);
 
     // Restart the timer.
     accel_timer = app_timer_register(ACCEL_UPDATE_PERIOD, update_accel, NULL);
-
-    // Redraw the display layer.
-    layer_mark_dirty(bubble_layer);
 }
 
 void accel_handler(AccelData *data, uint32_t num_samples)
