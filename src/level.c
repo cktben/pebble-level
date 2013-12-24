@@ -1,9 +1,6 @@
 #include <pebble.h>
 #include "libfixmath/fix16.h"
 
-// Period of accelerometer updates, in milliseconds.
-#define ACCEL_UPDATE_PERIOD 67
-
 // Gives the number of items in an array.
 // This must be used only on static arrays, not on arbitrary pointers.
 #define COUNT(x) (sizeof(x) / sizeof(x[0]))
@@ -28,7 +25,6 @@ typedef struct
 
 Window *display_window;
 Layer *bubble_layer;
-AppTimer *accel_timer;
 
 TextLayer *angle_layer;
 char angle_text[32];
@@ -40,7 +36,7 @@ simple_menu_t filter_menu;
 bool force_backlight = false;
 
 // Determines filter bandwidth.  See the comments in filter().
-int filter_shift = 2;
+int filter_shift = 3;
 
 // Normalized gravity vector.
 fix16_t accel_normalized[3];
@@ -83,12 +79,8 @@ int filter(int *state, int input)
     return *state >> filter_shift;
 }
 
-void update_accel(void *param)
+void accel_handler(AccelData *data, uint32_t num_samples)
 {
-    // Get a new acceleration vector.
-    AccelData data;
-    accel_service_peek(&data);
-
     // Ignore samples with excessive magnitude, which indicates movement.
     // We can't completely reject movement (a 3-axis gyro is required for that).
     // 
@@ -100,14 +92,17 @@ void update_accel(void *param)
     // I don't see a good solution to that.  Filtering isn't really the right solution
     // because the accelerometer may be rotating (not in an inertial frame).
     // In practice this is unlikely to be a serious problem.
-    if (abs(data.x) < 1200 && abs(data.y) < 1200 && abs(data.z) < 1200)
+    // 
+    // Any sample while vibrating is also discarded.  Maybe this could happen if a notification
+    // occurs while the app is running.
+    if (!data->did_vibrate && abs(data->x) < 1200 && abs(data->y) < 1200 && abs(data->z) < 1200)
     {
         // Convert and normalize the acceleration vector.
         int32_t accel_raw[3] =
         {
-            data.x << 4,
-            data.y << 4,
-            data.z << 4
+            data->x << 4,
+            data->y << 4,
+            data->z << 4
         };
 
         fix16_t magsq = 0;
@@ -143,13 +138,6 @@ void update_accel(void *param)
         // Redraw the display layer.
         layer_mark_dirty(bubble_layer);
     }
-
-    // Restart the timer.
-    accel_timer = app_timer_register(ACCEL_UPDATE_PERIOD, update_accel, NULL);
-}
-
-void accel_handler(AccelData *data, uint32_t num_samples)
-{
 }
 
 void draw_bubble(Layer *layer, GContext *ctx)
@@ -260,14 +248,12 @@ void window_load(Window *window)
     layer_set_update_proc(bubble_layer, draw_bubble);
     layer_add_child(window_layer, bubble_layer);
 
-    accel_service_set_sampling_rate(10);
-    accel_data_service_subscribe(0, accel_handler);
-    update_accel(NULL);
+    accel_service_set_sampling_rate(ACCEL_SAMPLING_10HZ);
+    accel_data_service_subscribe(1, accel_handler);
 }
 
 void window_unload(Window *window)
 {
-    app_timer_cancel(accel_timer);
     accel_data_service_unsubscribe();
     layer_destroy(bubble_layer);
     text_layer_destroy(angle_layer);
